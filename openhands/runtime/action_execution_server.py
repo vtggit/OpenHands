@@ -8,6 +8,7 @@ NOTE: this will be executed inside the docker sandbox.
 import argparse
 import asyncio
 import base64
+import difflib
 import json
 import mimetypes
 import os
@@ -164,8 +165,17 @@ def _execute_file_editor(
                 logger.warning(
                     f'str_replace_editor failed: old_str not found in {path}'
                 )
+                diff = '\n'.join(
+                    difflib.unified_diff(
+                        contents.splitlines(),
+                        old_str.splitlines(),
+                        fromfile='file',
+                        tofile='old_str',
+                        lineterm='',
+                    )
+                )
                 return (
-                    'ERROR:\nThe string to replace was not found in the file. Please check the content and try again.',
+                    f'ERROR:\nThe string to replace was not found in the file. Please check the content and try again.\n\nDiff:\n{diff}',
                     (None, None),
                 )
         except Exception as e:
