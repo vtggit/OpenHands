@@ -95,6 +95,21 @@ def verify_api_key(api_key: str = Depends(api_key_header)):
     return api_key
 
 
+def unescape_json_string(s: str) -> str:
+    """Unescape JSON strings that may contain escaped quotes.
+
+    Args:
+        s: The string to unescape
+
+    Returns:
+        Unescaped string if it was a valid JSON string, otherwise the original string
+    """
+    try:
+        return json.loads(f'"{s}"')
+    except Exception:
+        return s
+
+
 def _execute_file_editor(
     editor: OHEditor,
     command: str,
@@ -131,6 +146,32 @@ def _execute_file_editor(
         except ValueError:
             return (
                 f"ERROR:\nInvalid insert_line value: '{insert_line}'. Expected an integer.",
+                (None, None),
+            )
+
+    # Unescape JSON strings if needed
+    if old_str is not None:
+        old_str = unescape_json_string(old_str)
+    if new_str is not None:
+        new_str = unescape_json_string(new_str)
+
+    # For str_replace command, verify that the old_str exists in the file before attempting replacement
+    if command == 'str_replace' and old_str is not None:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                contents = f.read()
+            if old_str not in contents:
+                logger.warning(
+                    f'str_replace_editor failed: old_str not found in {path}'
+                )
+                return (
+                    'ERROR:\nThe string to replace was not found in the file. Please check the content and try again.',
+                    (None, None),
+                )
+        except Exception as e:
+            logger.error(f'Error reading file {path} for verification: {str(e)}')
+            return (
+                f'ERROR:\nCould not read the file to verify the string to replace: {str(e)}',
                 (None, None),
             )
 
